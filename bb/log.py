@@ -4,9 +4,58 @@ import logging
 
 from time import time
 
+from contextlib import contextmanager
 from functools import wraps
 
 log = logging.getLogger(__name__)
+
+class LogCaptureHandler(logging.Handler):
+
+    """
+    A logging handler for capturing all log output
+    """
+
+    def __init__(self):
+        logging.Handler.__init__(self)
+        self.entries = []
+
+    def __iter__(self):
+        return iter(self.entries)
+
+    def emit(self, record):
+
+        self.entries.append(dict(msg=record.msg%record.args if record.args != () else record.msg,
+                                 levelno=record.levelno, levelname=record.levelname, name=record.name))
+
+
+@contextmanager
+def capture_log(level=logging.DEBUG):
+
+    """A context-manager for capturing logging output
+
+    with capture_log() as logs:
+       ... do something that logs ...
+
+       return list(logs)
+
+    This will temporarily set the level of the root logger to whatever
+    level is passed in. Ideally, other handlers attached will have
+    their own level filter set.
+
+    """
+
+    handler = LogCaptureHandler()
+    root = logging.getLogger()
+    lvl = root.level
+    root.setLevel(logging.DEBUG)
+    root.addHandler(handler)
+    try:
+        yield handler
+    finally:
+        root.removeHandler(handler)
+        root.setLevel(lvl)
+
+
 
 class timer(object):
 
